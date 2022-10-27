@@ -14,4 +14,4 @@ you have made changes to assignment_1.rmd and now need to push it
 
 If you have problems with cloning the repository to your local folder please let me know 
 
-- Manuela <3
+from Manuela <3
