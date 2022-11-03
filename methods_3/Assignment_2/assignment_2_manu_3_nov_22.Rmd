@@ -356,6 +356,28 @@ bind_rows(a,b)
 ```
 
 ### Analysis 
+
+```{r}
+matrix_pitch <- matrix_ma %>% 
+  select('StudyID', 'PITCH_F0_HC_M','PITCH_F0_HC_SD','PITCH_F0_SZ_M','PITCH_F0_SZ_SD')
+
+matrix_pitch <- matrix_pitch %>% 
+  na.omit()
+```
+
+```{r}
+pub_sd_pitch_HC <- bf(PITCH_F0_HC_SD ~1 + (1|StudyID))
+pub_sd_pitch_SZ <- bf(PITCH_F0_SZ_SD ~1 + (1|StudyID))
+
+#?bf()
+
+get_prior(data = matrix_pitch, family = gaussian, pub_sd_pitch_HC)
+
+matrix_priors <- c(
+  prior(normal(3, 22, 16.7), class=Intercept),
+  prior(normal(3, 0, 16.7), class=sd))
+```
+
 #### visualize and report 
 #### Population level effectsize, how the studies reflect that 
 #### influencial studies 
