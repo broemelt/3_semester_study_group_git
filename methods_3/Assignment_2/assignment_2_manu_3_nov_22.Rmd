@@ -263,7 +263,7 @@ plot3 <- ggplot()+
   geom_histogram(aes(pub_posterior$Intercept), fill='red', color='black', alpha=0.3, bins=50)+
   geom_histogram(aes(model_posterior$Intercept), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
-  ggtitle('intercept with and without the un-published studis')+
+  ggtitle('effect size with and without the un-published studis')+
   xlab('red=without un-published, green=with un-published')
 
 
@@ -271,7 +271,7 @@ plot4 <- ggplot()+
   geom_histogram(aes(pub_posterior$sd_study_ID__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
   geom_histogram(aes(model_posterior$sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
-  ggtitle('standard deviation of the intercepts with and without the un-published studis')+
+  ggtitle('standard deviation of the effect size with and without the un-published studis')+
   xlab('red=without un-published, green=with un-published')
 
 grid.arrange(plot3, plot4)
@@ -337,8 +337,8 @@ matrix_ma_filter_for_analysis$FEMALE_HC <- as.numeric(matrix_ma_filter_for_analy
 ##Making a tibble  
 a <- tibble(diagnosis = "SZ",
          mean_sample_size=mean(matrix_ma_filter_for_analysis$SAMPLE_SIZE_SZ),
-         numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_SZ),
-         number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_SZ),
+         mean_numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_SZ),
+         mean_number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_SZ),
          mean_age=mean(matrix_ma_filter_for_analysis$AGE_M_SZ),
          mean_sd_age=mean(matrix_ma_filter_for_analysis$AGE_SD_SZ)
          )
@@ -346,8 +346,8 @@ a <- tibble(diagnosis = "SZ",
 
 b <- tibble(diagnosis = "HC",
          mean_sample_size=mean(matrix_ma_filter_for_analysis$SAMPLE_SIZE_HC),
-         numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_HC),
-         number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_HC),
+         mean_numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_HC),
+         mean_number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_HC),
          mean_age=mean(matrix_ma_filter_for_analysis$AGE_M_HC),
          mean_sd_age=mean(matrix_ma_filter_for_analysis$AGE_SD_HC)
          )
@@ -359,13 +359,18 @@ bind_rows(a,b)
 
 ```{r}
 matrix_pitch <- matrix_ma %>% 
-  select('StudyID', 'PITCH_F0_HC_M','PITCH_F0_HC_SD','PITCH_F0_SZ_M','PITCH_F0_SZ_SD')
+  select('StudyID','Article', 'PITCH_F0SD_HC_M','PITCH_F0SD_HC_SD','PITCH_F0SD_SZ_M','PITCH_F0SD_SZ_SD')
 
 matrix_pitch <- matrix_pitch %>% 
   na.omit()
 ```
 
 ```{r}
+matrix_pitch <- matrix_pitch %>% 
+  mutate(
+    pooled_sd=
+      sqrt(
+        (matrix_pitch$PITCH_F0SD_SZ_SD^2+matrix_pitch$PITCH_F0SD_HC_SD^2)))
 pub_sd_pitch_HC <- bf(PITCH_F0_HC_SD ~1 + (1|StudyID))
 pub_sd_pitch_SZ <- bf(PITCH_F0_SZ_SD ~1 + (1|StudyID))
 
