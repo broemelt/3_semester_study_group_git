@@ -38,6 +38,8 @@ pacman::p_load(tidyverse)
 pacman::p_load(purr)
 
 pacman::p_load(MCMCglmm)
+
+pacman::p_load(readxl)
 ```
 
 # Assignment 2: meta-analysis
@@ -160,6 +162,10 @@ pp_check(model_prior_fit, ndraws=100)
 ```{r}
 plot(model_prior_fit)
 ```
+```{r}
+summary(model_prior_fit)
+```
+
 
 #### Prior posterior update check
 ```{r}
@@ -180,9 +186,7 @@ plot2 <- ggplot(model_posterior)+
   ggtitle('prior-posterior update check on standard deviation of the intercept')+
   xlab('intercept')
 
-plot1
-
-plot2
+grid.arrange(plot1, plot2)
 ```
 
 
@@ -199,17 +203,84 @@ for (i in seq(nrow(sim_studies))){
 sim_studies <- sim_studies %>%
   mutate(published=as.factor(published))
 
-published_sim_studies <- filter(sim_studies, published==1)
+pub_sim_studies <- filter(sim_studies, published==1)
 ```
 
+```{r}
+pub_model_prior_fit <- brm(
+  model_study, 
+  data = pub_sim_studies, 
+  prior = priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = TRUE,
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+pp_check(pub_model_prior_fit, ndraws=100)
+```
+
+```{r}
+plot(pub_model_prior_fit)
+
+summary(pub_model_prior_fit)
+
+pub_posterior <- as_draws_df(pub_model_prior_fit)
+```
+
+```{r}
+pub_plot1 <- ggplot(pub_posterior)+
+  geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept (published)')+
+  xlab('intercept')
+
+
+pub_plot2 <- ggplot(pub_posterior)+
+  geom_histogram(aes(prior_sd_study_ID), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on standard deviation of the intercept (published)')+
+  xlab('sd')
+
+
+grid.arrange(pub_plot1, pub_plot2)
+
+
+```
+```{r}
+plot3 <- ggplot()+
+  geom_histogram(aes(pub_posterior$Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(model_posterior$Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('intercept with and without the un-published studis')+
+  xlab('red=without un-published, green=with un-published')
+
+
+plot4 <- ggplot()+
+  geom_histogram(aes(pub_posterior$sd_study_ID__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(model_posterior$sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('standard deviation of the intercepts with and without the un-published studis')+
+  xlab('red=without un-published, green=with un-published')
+
+grid.arrange(plot3, plot4)
+```
 
 ### BONUS: Power/precision analysis
 
 ## Question 2
 
 ```{r}
-
-  
-
-
+matrix_ma <- read_excel("Matrix_MetaAnalysis.xlsx")
 ```
