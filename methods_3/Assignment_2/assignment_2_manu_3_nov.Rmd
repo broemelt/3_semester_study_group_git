@@ -84,7 +84,6 @@ for (i in seq(nrow(sim_studies))){
       sd(temp)
     sim_studies$standard_error[i] <-
       sim_studies$sd_effect[i]/sqrt(sim_studies$n_participants[i])
-    sim_studies$published[i] <- ifelse(abs(sim_studies$mean_effect_size)-(2*sim_studies$standard_error)>0 & sim_studies$mean_effect_size[i]>0, rbinom(1,1,0.9), rbinom(1,1,0.1))
   }
 
 
@@ -190,6 +189,13 @@ plot2
 ### Simulation of publication bias, the effect of publication bias on our estimate and asses the publication bias (remember to visualize our results)
 
 ```{r}
+for (i in seq(nrow(sim_studies))){
+  sim_studies$published[i] <-
+    ifelse(abs(
+      sim_studies$mean_effect_size)-(2*sim_studies$standard_error)>0 
+      & sim_studies$mean_effect_size[i]>0,
+      rbinom(1,1,0.9), rbinom(1,1,0.1))}
+
 sim_studies <- sim_studies %>%
   mutate(published=as.factor(published))
 
