@@ -288,4 +288,6 @@ matrix_ma <- read_excel("Matrix_MetaAnalysis.xlsx")
 
 ### Analysis 
 #### visualize and report 
-#### Population level effectsie, how the studies reflect that 
+#### Population level effectsize, how the studies reflect that 
+#### influencial studies 
+#### Publication bias 
