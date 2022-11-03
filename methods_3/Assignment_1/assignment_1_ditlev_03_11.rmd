@@ -645,6 +645,7 @@ plot9
 
 
 ```
+
 ```{r}
 temp_re <- ranef(MLU_prior_fit)$SUBJ
 for (i in unique(real_data$SUBJ)) {

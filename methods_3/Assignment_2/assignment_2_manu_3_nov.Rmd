@@ -69,25 +69,22 @@ sim_studies <-
   tibble(
     study_ID = seq(1:n),
     n_participants = 
-        round(rtnorm(n, mean=par_mean, sd=par_sd, lower=10)),
-    true_effect= NA,
-    mean_effect_size= NA,
-    sd_effect=NA,
-    standard_error=NA
+        round(rtnorm(n, mean=par_mean, sd=par_sd, lower=10))
     ) 
       
   
 for (i in seq(nrow(sim_studies))){
-    sim_studies$true_effect[i] <- 
+    sim_studies$study_effect[i] <- 
       rnorm(1,mean_effect,effect_sd)
     temp <- 
-      rnorm(sim_studies$n_participants[i],sim_studies$true_effect[i], meas_error)
+      rnorm(sim_studies$n_participants[i],sim_studies$study_effect[i], meas_error)
     sim_studies$mean_effect_size[i] <- 
       mean(temp)
     sim_studies$sd_effect[i] <- 
       sd(temp)
     sim_studies$standard_error[i] <-
       sim_studies$sd_effect[i]/sqrt(sim_studies$n_participants[i])
+    sim_studies$published[i] <- ifelse(abs(sim_studies$mean_effect_size)-(2*sim_studies$standard_error)>0 & sim_studies$mean_effect_size[i]>0, rbinom(1,1,0.9), rbinom(1,1,0.1))
   }
 
 
@@ -170,17 +167,35 @@ plot(model_prior_fit)
 model_posterior <- as_draws_df(model_prior_fit)
 
 plot1 <- ggplot(model_posterior)+
-  geom_histogram(aes(prior_sd_study_ID__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept')+
+  xlab('intercept')
+
+
+plot2 <- ggplot(model_posterior)+
+  geom_histogram(aes(prior_sd_study_ID), fill='red', color='black', alpha=0.3, bins=50)+
   geom_histogram(aes(sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
-  ggtitle('prior-posterior update check on interceps')+
+  ggtitle('prior-posterior update check on standard deviation of the intercept')+
   xlab('intercept')
 
 plot1
+
+plot2
 ```
 
 
 ### Simulation of publication bias, the effect of publication bias on our estimate and asses the publication bias (remember to visualize our results)
+
+```{r}
+sim_studies <- sim_studies %>%
+  mutate(published=as.factor(published))
+
+published_sim_studies <- filter(sim_studies, published==1)
+```
+
 
 ### BONUS: Power/precision analysis
 
