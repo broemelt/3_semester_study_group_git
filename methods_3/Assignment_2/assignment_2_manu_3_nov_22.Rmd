@@ -40,6 +40,8 @@ pacman::p_load(purr)
 pacman::p_load(MCMCglmm)
 
 pacman::p_load(readxl)
+
+pacman::p_load(metafor)
 ```
 
 # Assignment 2: meta-analysis
@@ -359,29 +361,131 @@ bind_rows(a,b)
 
 ```{r}
 matrix_pitch <- matrix_ma %>% 
-  select('StudyID','Article', 'PITCH_F0SD_HC_M','PITCH_F0SD_HC_SD','PITCH_F0SD_SZ_M','PITCH_F0SD_SZ_SD')
+  select('StudyID','Article','SAMPLE_SIZE_SZ','SAMPLE_SIZE_HC', 'PITCH_F0SD_HC_M','PITCH_F0SD_HC_SD','PITCH_F0SD_SZ_M','PITCH_F0SD_SZ_SD')
 
 matrix_pitch <- matrix_pitch %>% 
   na.omit()
+
+matrix_pitch <- matrix_pitch %>% 
+  mutate(sample_size=(SAMPLE_SIZE_SZ+SAMPLE_SIZE_HC))
+
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.factor(StudyID))
+
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.numeric(StudyID))
+
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.factor(StudyID))
+
+matrix_pitch <- escalc('SMD', 
+                    n1i = SAMPLE_SIZE_SZ, 
+                    n2i = SAMPLE_SIZE_HC,
+                    m1i = PITCH_F0SD_SZ_M, 
+                    m2i = PITCH_F0SD_HC_M,
+                    sd1i = PITCH_F0SD_SZ_SD, 
+                    sd2i = PITCH_F0SD_HC_SD,
+                    data = matrix_pitch)
+
+matrix_pitch <- matrix_pitch %>% 
+  rename(effect_size=yi)
 ```
 
 ```{r}
-matrix_pitch <- matrix_pitch %>% 
-  mutate(
-    pooled_sd=
-      sqrt(
-        (matrix_pitch$PITCH_F0SD_SZ_SD^2+matrix_pitch$PITCH_F0SD_HC_SD^2)))
-pub_sd_pitch_HC <- bf(PITCH_F0_HC_SD ~1 + (1|StudyID))
-pub_sd_pitch_SZ <- bf(PITCH_F0_SZ_SD ~1 + (1|StudyID))
 
-#?bf()
+for (i in seq(nrow(matrix_pitch))){
+  matrix_pitch$sd_effect[i] <- sqrt((sum((matrix_pitch$effect_size[i] - mean(matrix_pitch$effect_size))^2))/length(matrix_pitch))
+  matrix_pitch$standard_error[i] <- matrix_pitch$sd_effect[i]/sqrt(matrix_pitch$sample_size)
+}
 
-get_prior(data = matrix_pitch, family = gaussian, pub_sd_pitch_HC)
+
+```
+
+```{r}
+model_matrix <- bf(effect_size|se(standard_error) ~1 + (1|StudyID))
+
+
+get_prior(data = matrix_pitch, family = gaussian, model_matrix)
 
 matrix_priors <- c(
-  prior(normal(3, 22, 16.7), class=Intercept),
-  prior(normal(3, 0, 16.7), class=sd))
+  prior(normal( -3, 2.5), class=Intercept),
+  prior(normal( 0, 2.5), class=sd))
 ```
+
+#### only with priors
+```{r}
+matrix_prior_fit <- brm(
+  model_matrix, 
+  data = matrix_pitch, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+pp_check(matrix_prior_fit, ndraws=100)
+```
+
+#### Both data and priors
+```{r}
+matrix_fit <- brm(
+  model_matrix, 
+  data = matrix_pitch, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+pp_check(matrix_fit)
+```
+
+```{r}
+plot(matrix_fit)
+
+summary(matrix_fit)
+```
+```{r}
+matrix_posterior <- as_draws_df(matrix_fit)
+
+plot1 <- ggplot(matrix_posterior)+
+  geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept')+
+  xlab('intercept')
+
+
+plot2 <- ggplot(matrix_posterior)+
+  geom_histogram(aes(prior_sd_StudyID), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_StudyID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on standard deviation of the intercept')+
+  xlab('intercept')
+
+grid.arrange(plot1, plot2)
+```
+
 
 #### visualize and report 
 #### Population level effectsize, how the studies reflect that 
