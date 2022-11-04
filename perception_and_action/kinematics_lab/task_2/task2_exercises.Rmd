@@ -178,6 +178,7 @@ grid.arrange(plot3, plot4)
 Because to calculate the acceleration we use the already filtered velocity
 
 
+
 ### Velocity of the index finger in 3D space
 Now that we have understood velocity and acceleration in one dimension, let's make it three-dimensional. Find the formula for calculating velocity in three dimensional space, and use it to do so.
 ```{r}

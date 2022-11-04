@@ -291,31 +291,31 @@ matrix_ma <- read_excel("Matrix_MetaAnalysis.xlsx")
 
 ##Filtering out NA & NR
 matrix_ma_filter_for_analysis <- matrix_ma %>%
-  filter(AGE_M_SZ!="NR") %>%
-  filter(AGE_M_SZ!="NA")
+  dplyr::filter(AGE_M_SZ!="NR") %>%
+  dplyr::filter(AGE_M_SZ!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(AGE_SD_SZ!="NR") %>%
-  filter(AGE_SD_SZ!="NA")
+  dplyr::filter(AGE_SD_SZ!="NR") %>%
+  dplyr::filter(AGE_SD_SZ!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(MALE_SZ!="NR") %>%
-  filter(MALE_SZ!="NA")
+  dplyr::filter(MALE_SZ!="NR") %>%
+  dplyr::filter(MALE_SZ!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(FEMALE_SZ!="NR") %>%
-  filter(FEMALE_SZ!="NA")
+  dplyr::filter(FEMALE_SZ!="NR") %>%
+  dplyr::filter(FEMALE_SZ!="NA")
 
 ##Filtering out NA & NR for 
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(AGE_M_HC!="NR") %>%
-  filter(AGE_M_HC!="NA")
+  dplyr::filter(AGE_M_HC!="NR") %>%
+  dplyr::filter(AGE_M_HC!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(AGE_SD_HC!="NR") %>%
-  filter(AGE_SD_HC!="NA")
+  dplyr::filter(AGE_SD_HC!="NR") %>%
+  dplyr::filter(AGE_SD_HC!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(MALE_HC!="NR") %>%
-  filter(MALE_HC!="NA")
+  dplyr::filter(MALE_HC!="NR") %>%
+  dplyr::filter(MALE_HC!="NA")
 matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
-  filter(FEMALE_HC!="NR") %>%
-  filter(FEMALE_HC!="NA")
+  dplyr::filter(FEMALE_HC!="NR") %>%
+  dplyr::filter(FEMALE_HC!="NA")
 ##Making the variables numeric for SZ
 matrix_ma_filter_for_analysis$AGE_M_SZ <- as.numeric(matrix_ma_filter_for_analysis$AGE_M_SZ)
 
@@ -358,7 +358,15 @@ bind_rows(a,b)
 ```
 
 ### Analysis 
+In this analysis we are using the function escalc. The function calculates the standardized mean difference between two groups, called hedges G. The value represents the effect size and is similar to cohen's d.
 
+the formula for g is = (x1 – x2) / √((n1-1)*s12 + (n2-1)*s22) / (n1+n2-2)
+
+and 
+
+the formula for d is = (x1 – x2) / √(s12 + s22) / 2
+
+Hedges g takes the sample size of each group into account, and g = d when the two samples sizes er equal. We have therefore chosen to use hedges g to calculate the effect size of the different studies.
 ```{r}
 matrix_pitch <- matrix_ma %>% 
   select('StudyID','Article','SAMPLE_SIZE_SZ','SAMPLE_SIZE_HC', 'PITCH_F0SD_HC_M','PITCH_F0SD_HC_SD','PITCH_F0SD_SZ_M','PITCH_F0SD_SZ_SD')
@@ -379,13 +387,13 @@ matrix_pitch <- matrix_pitch %>%
   mutate(StudyID=as.factor(StudyID))
 
 matrix_pitch <- escalc('SMD', 
-                    n1i = SAMPLE_SIZE_SZ, 
-                    n2i = SAMPLE_SIZE_HC,
-                    m1i = PITCH_F0SD_SZ_M, 
-                    m2i = PITCH_F0SD_HC_M,
-                    sd1i = PITCH_F0SD_SZ_SD, 
-                    sd2i = PITCH_F0SD_HC_SD,
-                    data = matrix_pitch)
+                       n1i=SAMPLE_SIZE_HC,
+                       n2i=SAMPLE_SIZE_SZ,
+                       m1i = PITCH_F0SD_HC_M, 
+                       m2i=PITCH_F0SD_SZ_M,
+                       sd1i = PITCH_F0SD_HC_SD, 
+                       sd2i = PITCH_F0SD_SZ_SD,
+                       data = matrix_pitch)
 
 matrix_pitch <- matrix_pitch %>% 
   rename(effect_size=yi)
@@ -408,11 +416,11 @@ model_matrix <- bf(effect_size|se(standard_error) ~1 + (1|StudyID))
 get_prior(data = matrix_pitch, family = gaussian, model_matrix)
 
 matrix_priors <- c(
-  prior(normal( -0.3, 2.5), class=Intercept),
+  prior(normal( 0.3, 2.5), class=Intercept),
   prior(normal( 0, 2.5), class=sd))
 ```
 
-#### only with priors
+#### Fitting model with only the priors
 ```{r}
 matrix_prior_fit <- brm(
   model_matrix, 
@@ -436,7 +444,7 @@ matrix_prior_fit <- brm(
 pp_check(matrix_prior_fit, ndraws=100)
 ```
 
-#### Both data and priors
+#### Fitting model on data
 ```{r}
 matrix_fit <- brm(
   model_matrix, 
@@ -465,11 +473,50 @@ plot(matrix_fit)
 
 summary(matrix_fit)
 ```
+Our model gives us an estimated intercept (effect size) of 0.3 with a estimated standard deviation of 2, which is due to the effect sizes of the studies varying a lot. 
+For example we have the study Cohen et al. (2014) with an effect size of -3.30 (sd=0.90, se=0.11, n=76), therefore we are running our model fit again were we exclude the study to see how influential it is on the estimates.
+
+```{r}
+excluded_matrix <- matrix_pitch %>% 
+  dplyr::filter(StudyID!=6)
+
+
+exclude_matrix_fit <- brm(
+  model_matrix, 
+  data = excluded_matrix, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+pp_check(exclude_matrix_fit)
+
+plot(exclude_matrix_fit)
+
+summary(exclude_matrix_fit)
+```
+
+
+
 ```{r}
 matrix_posterior <- as_draws_df(matrix_fit)
 
+## we cannot get this to work and do not know why
+# But we do not know if this is even necessary to include
+
 plot1 <- ggplot(matrix_posterior)+
-  geom_histogram(aes(prior), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(lprior), fill='red', color='black', alpha=0.3, bins=50)+
   geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('prior-posterior update check on intercept')+
@@ -486,8 +533,3 @@ plot2 <- ggplot(matrix_posterior)+
 
 ```
 
-
-#### visualize and report 
-#### Population level effectsize, how the studies reflect that 
-#### influencial studies 
-#### Publication bias 
