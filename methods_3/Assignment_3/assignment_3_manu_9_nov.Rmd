@@ -1,0 +1,46 @@
+---
+title: "assignment_3"
+author: "Manuel Thomasen"
+date: "2022-11-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Assignment 3
+
+```{r}
+pacman::p_load(tidyverse, brms, rstan, cmdstanr, ggplot2)
+```
+
+
+##Part 1 - Simulating data
+ 
+Use meta analysis reported in Parola et al (2020) to create informed simulated data 
+- 100 pairs of schizophrenia and controls, each participant producing 10 repeated measures (10 trials with their speech recorded), for each recording produce 10 acoustic measures (6 from meta analysis and 4 with random noise)
+
+- Do the same for a baseline data set including only 10 noise variables 
+
+
+##Part 2 - Machine larning pipeline on simulated data 
+Build a machine leaning pipeline (separately on the 2 datasets)
+- create a data budget (e.g., balanced training and test sets)
+pree-process the data (e.g., scaling the features)
+- fit and assess a classification algorithm on the training data (e.g., bayesian multilevel logistic regression)
+- assess performance on the test set
+- discuss whether performance and feature importance is as expected
+
+
+##Part 3 - Applying the machine learning pipeline to empirical data 
+
+```{r}
+real_data <- read_csv("assignment_3_data.csv")
+```
+
+
+Apply your machine learning pipeline to the empirical data 
+
+Warning: in simulated data you only ahve 10 features, now you have many more 
+- Consider the impact a higher number of features will have on your ML inference and decide if you want to cut down the number of features before running the pipeline (alternatibvely expand the pipeline to add feature selection)
+
