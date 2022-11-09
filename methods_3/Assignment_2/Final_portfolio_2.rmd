@@ -1,0 +1,547 @@
+---
+title: "A_2.final"
+author: "Patrik Molnar"
+date: '2022-11-04'
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+####Loading required packages
+pacman::p_load(glue,
+       tidyr,
+       data.table,
+       moments,
+       tidybayes,
+       tibble,
+       cowplot,
+       viridis,
+       brms,
+       stringr,
+       rstan,
+       cmdstanr,
+       magrittr,
+       gridExtra,
+       grid,
+       lattice,
+       ggplot2,
+       ggridges,
+       ellipse,
+       Rmisc, 
+       dplyr, 
+       "rmarkdown", 
+       knitr)
+pacman::p_load(tidyverse)
+pacman::p_load(purr)
+pacman::p_load(MCMCglmm)
+pacman::p_load(readxl)
+pacman::p_load(metafor)
+```
+
+# Assignment 2: meta-analysis
+
+## Questions to be answered
+
+1.  Simulate data to setup the analysis and gain insight on the structure of the problem. Simulate one dataset of 100 studies (n of participants should follow a normal distribution with mean of 20, sd of 10, but no fewer than 10 participants), with a mean effect size of 0.4, average deviation by study of .4 and measurement error of .8. The data you get should have one row per study, with an effect size mean and standard error. Build a proper bayesian model to analyze the simulated data. Then simulate publication bias (only some of the studies you simulate are likely to be published, which?), the effect of publication bias on your estimates (re-run the model on published studies, assess the difference), and use at least one technique to assess publication bias. remember to use at least one plot to visualize your results. BONUS question: do a power/precision analysis.
+
+2.  What is the current evidence for distinctive vocal patterns in schizophrenia? Use the data from Parola et al (2020) - <https://www.dropbox.com/s/0l9ur0gaabr80a8/Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx?dl=0> - focusing on pitch variability (PITCH_F0SD). Describe the data available (studies, participants). Using the model from question 1 analyze the data, visualize and report the findings: population level effect size; how well studies reflect it; influential studies, publication bias. BONUS question: add the findings from <https://www.medrxiv.org/content/10.1101/2022.04.03.22273354v2>. BONUS question: assess the effect of task on the estimates (model comparison with baseline model)
+
+## Question 1
+
+### Simulation
+
+```{r}
+####Outlining prior parameter provided by the assignment description
+mean_effect <- 0.4
+effect_sd <- 0.4
+meas_error <- 0.8
+par_mean <- 20
+par_sd <- 10
+n <- 100
+```
+
+```{r}
+####A simulation of participant data of multiple visits using the provided data
+set.seed(954)
+
+sim_studies <-
+  tibble(
+    study_ID = seq(1:n),
+    n_participants = 
+        round(rtnorm(n, mean=par_mean, sd=par_sd, lower=10))
+    ) 
+      
+  
+for (i in seq(nrow(sim_studies))){
+    sim_studies$study_effect[i] <- 
+      rnorm(1,mean_effect,effect_sd)
+    temp <- 
+      rnorm(sim_studies$n_participants[i],sim_studies$study_effect[i], meas_error)
+    sim_studies$mean_effect_size[i] <- 
+      mean(temp)
+    sim_studies$sd_effect[i] <- 
+      sd(temp)
+    sim_studies$standard_error[i] <-
+      sim_studies$sd_effect[i]/sqrt(sim_studies$n_participants[i])
+  }
+```
+
+### Bayesian model
+
+```{r}
+####A Bayesian model illustrating potential effect sizes on individual participants
+model_study <- bf(mean_effect_size|se(standard_error) ~1 + (1|study_ID))
+```
+
+#### Priors
+
+```{r}
+####Generating prior data simulations to model, using parameters provided in class
+get_prior(data = sim_studies, family = gaussian, model_study)
+priors <- c(
+  prior(normal(0, 0.3), class=Intercept),
+  prior(normal(0, 0.3), class=sd))
+```
+
+#### Model
+
+Only priors
+
+```{r}
+####Modeling using sample_prior = 'only'
+model_prior <- brm(
+  model_study, 
+  data = sim_studies, 
+  prior = priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+pp_check(model_prior, ndraws=100)
+```
+
+#### Fitting model
+
+```{r}
+####Modeling the sampled priors along with the simulation
+model_prior_fit <- brm(
+  model_study, 
+  data = sim_studies, 
+  prior = priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = TRUE,
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+pp_check(model_prior_fit, ndraws=100)
+```
+
+```{r}
+####Plotting and visualizing
+plot(model_prior_fit)
+summary(model_prior_fit)
+```
+
+
+
+#### Prior posterior update check
+```{r}
+####Plotting "prior-posterior update check on intercept" and "prior-posterior update check on standard deviation of the intercept"
+model_posterior <- as_draws_df(model_prior_fit)
+plot1 <- ggplot(model_posterior)+
+  geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept')+
+  xlab('intercept')
+plot2 <- ggplot(model_posterior)+
+  geom_histogram(aes(prior_sd_study_ID), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on standard deviation of the intercept')+
+  xlab('intercept')
+grid.arrange(plot1, plot2)
+```
+
+
+### Simulation of publication bias, the effect of publication bias on our estimate and asses the publication bias (remember to visualize our results)
+
+```{r}
+####Simulating the effect size of the publication factors and filtering data for only published studies
+set.seed(843)
+
+for (i in seq(nrow(sim_studies))){
+  sim_studies$published[i] <-
+    ifelse(abs(
+      sim_studies$mean_effect_size[i])-(2*sim_studies$standard_error[i])>0 
+      & sim_studies$mean_effect_size[i]>0,
+      rbinom(1,1,0.9), rbinom(1,1,0.1))}
+
+sim_studies <- sim_studies %>%
+  mutate(published=as.factor(published))
+
+pub_sim_studies <- dplyr::filter(sim_studies, published==1)
+
+
+```
+
+```{r}
+####Modeling using sample_prior = 'only'
+pub_model_prior_fit <- brm(
+  model_study, 
+  data = pub_sim_studies, 
+  prior = priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = TRUE,
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+pp_check(pub_model_prior_fit, ndraws=100)
+```
+
+```{r}
+####Potting and assesing
+plot(pub_model_prior_fit)
+summary(pub_model_prior_fit)
+####Transforming the brmsfit to draws
+pub_posterior <- as_draws_df(pub_model_prior_fit)
+```
+
+```{r}
+####Plotting "prior-posterior update check on intercept" and "prior-posterior update check on standard deviation of the intercept"
+pub_plot1 <- ggplot(pub_posterior)+
+  geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept (published)')+
+  xlab('intercept')
+pub_plot2 <- ggplot(pub_posterior)+
+  geom_histogram(aes(prior_sd_study_ID), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on standard deviation of the intercept (published)')+
+  xlab('sd')
+grid.arrange(pub_plot1, pub_plot2)
+```
+
+```{r}
+####Plotting "effect size with and without the un-published studis" and "tandard deviation of the effect size with and without the un-published studis"
+plot3 <- ggplot()+
+  geom_histogram(aes(pub_posterior$Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(model_posterior$Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('effect size with and without the un-published studis')+
+  xlab('red=only published, green=with un-published')
+plot4 <- ggplot()+
+  geom_histogram(aes(pub_posterior$sd_study_ID__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(model_posterior$sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('standard deviation of the effect size with and without the un-published studis')+
+  xlab('red=only published, green=with un-published')
+grid.arrange(plot3, plot4)
+```
+### Publication bias description!
+
+In our simulation of the publication bias, we find a difference in the population level estimates of the intercept (effect size) between the data including unpublished studies vs data excluding unpublished studies to be 0.59  - 0.34, or 0.25.. The 95% confience interval for the unpublished data set = 0.26  -  0.43
+where for the publsihed it is 0.50   -  0.67. further more the sd of the intercept for unpublished is 0.43 and 0.39 for published. Our simulation of the true underlying effect is centered around 0.4, this means the publication bias results in a tendency to over estimate the underlying signal. We simulate the sd of the effect size is 0.4 and a measurement error of 0.8, we can therefore show that the publication bias also results in an underestimation of variance/deviation.
+
+We can see this effect in the two plots above, the red (only published) has a higher estimate for the intercept and lower standard deviation, whereeas the green (all studies) has a lower estimated intercept and higher standard deviation. 
+
+This conclusion is based on our findings from the simulation, however, the simulation has its flaws, it would be better to run the simulation many times and recording how much the publication bias influences the estimates, and then estimating the publication bias' effect from that. Furthermore our process of determining the the chance of publication is very simple, one could imagine many factors other the effect size and standard error to play a role, such as reputation of the author(s), experimental design, factors which are not as easily quantifiable. With all this in mind, we should draw strong conclusions from our simulation, but rather keep it in mind as we evaluate the results of the meta analysis.
+
+### BONUS: Power/precision analysis
+
+## Question 2
+
+```{r}
+#### Loading the data 
+matrix_ma <- read_excel("/Users/patrikmolnar/Desktop/Cognitive Science/Semester 3/Methods3/Matrix_MetaAnalysis.xlsx")
+```
+### Describing the data 
+```{r}
+####Filtering out NA & NR for SZ
+matrix_ma_filter_for_analysis <- matrix_ma %>%
+  dplyr::filter(AGE_M_SZ!="NR") %>%
+  dplyr::filter(AGE_M_SZ!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(AGE_SD_SZ!="NR") %>%
+  dplyr::filter(AGE_SD_SZ!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(MALE_SZ!="NR") %>%
+  dplyr::filter(MALE_SZ!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(FEMALE_SZ!="NR") %>%
+  dplyr::filter(FEMALE_SZ!="NA")
+####Filtering out NA & NR for HC
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(AGE_M_HC!="NR") %>%
+  dplyr::filter(AGE_M_HC!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(AGE_SD_HC!="NR") %>%
+  dplyr::filter(AGE_SD_HC!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(MALE_HC!="NR") %>%
+  dplyr::filter(MALE_HC!="NA")
+matrix_ma_filter_for_analysis <- matrix_ma_filter_for_analysis %>%
+  dplyr::filter(FEMALE_HC!="NR") %>%
+  dplyr::filter(FEMALE_HC!="NA")
+####Making the variables numeric for SZ
+matrix_ma_filter_for_analysis$AGE_M_SZ <- as.numeric(matrix_ma_filter_for_analysis$AGE_M_SZ)
+matrix_ma_filter_for_analysis$AGE_SD_SZ <- as.numeric(matrix_ma_filter_for_analysis$AGE_SD_SZ)
+matrix_ma_filter_for_analysis$MALE_SZ <- as.numeric(matrix_ma_filter_for_analysis$MALE_SZ)
+matrix_ma_filter_for_analysis$FEMALE_SZ <- as.numeric(matrix_ma_filter_for_analysis$FEMALE_SZ)
+####Making the variables numeric for HC
+matrix_ma_filter_for_analysis$AGE_M_HC <- as.numeric(matrix_ma_filter_for_analysis$AGE_M_HC)
+matrix_ma_filter_for_analysis$AGE_SD_HC <- as.numeric(matrix_ma_filter_for_analysis$AGE_SD_HC)
+matrix_ma_filter_for_analysis$MALE_HC <- as.numeric(matrix_ma_filter_for_analysis$MALE_HC)
+matrix_ma_filter_for_analysis$FEMALE_HC <- as.numeric(matrix_ma_filter_for_analysis$FEMALE_HC)
+####Making both tibbles in order to combine them and make them easier for the eye 
+a <- tibble(diagnosis = "SZ",
+         mean_sample_size=mean(matrix_ma_filter_for_analysis$SAMPLE_SIZE_SZ),
+         mean_numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_SZ),
+         mean_number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_SZ),
+         mean_age=mean(matrix_ma_filter_for_analysis$AGE_M_SZ),
+         mean_sd_age=mean(matrix_ma_filter_for_analysis$AGE_SD_SZ)
+         )
+  
+b <- tibble(diagnosis = "HC",
+         mean_sample_size=mean(matrix_ma_filter_for_analysis$SAMPLE_SIZE_HC),
+         mean_numer_of_males=mean(matrix_ma_filter_for_analysis$MALE_HC),
+         mean_number_of_females=mean(matrix_ma_filter_for_analysis$FEMALE_HC),
+         mean_age=mean(matrix_ma_filter_for_analysis$AGE_M_HC),
+         mean_sd_age=mean(matrix_ma_filter_for_analysis$AGE_SD_HC)
+         )
+####Binding the rows together
+Demographic_overview <- bind_rows(a,b)
+
+####Showing the tibble
+Demographic_overview
+```
+
+### Analysis 
+
+In this analysis we are using the function escalc. The function calculates the standardized mean difference between two groups, called hedges G. The value represents the effect size and is similar to cohen's d.
+
+the formula for g is = (x1 – x2) / √((n1-1)*s12 + (n2-1)*s22) / (n1+n2-2)
+
+and 
+
+the formula for d is = (x1 – x2) / √(s12 + s22) / 2
+
+Hedges g takes the sample size of each group into account, and g = d when the two samples sizes er equal. We have therefore chosen to use hedges g to calculate the effect size of the different studies.
+
+```{r}
+####Selceting the relevant variables
+matrix_pitch <- matrix_ma %>% 
+  select('StudyID','Article','SAMPLE_SIZE_SZ','SAMPLE_SIZE_HC', 'PITCH_F0SD_HC_M','PITCH_F0SD_HC_SD','PITCH_F0SD_SZ_M','PITCH_F0SD_SZ_SD')
+
+####Filtering out the NA
+matrix_pitch <- matrix_pitch %>% 
+  na.omit()
+
+####Merging diagnosis into one variable
+matrix_pitch <- matrix_pitch %>% 
+  mutate(sample_size=(SAMPLE_SIZE_SZ+SAMPLE_SIZE_HC))
+
+
+####Creating IDs for the studies
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.factor(StudyID))
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.numeric(StudyID))
+matrix_pitch <- matrix_pitch %>% 
+  mutate(StudyID=as.factor(StudyID))
+
+####Getting normalized results
+matrix_pitch <- escalc('SMD', 
+n1i=SAMPLE_SIZE_HC,
+n2i=SAMPLE_SIZE_SZ,
+m1i = PITCH_F0SD_HC_M, 
+m2i=PITCH_F0SD_SZ_M,
+sd1i = PITCH_F0SD_HC_SD, 
+sd2i = PITCH_F0SD_SZ_SD,
+data = matrix_pitch)
+matrix_pitch <- matrix_pitch %>% 
+  rename(effect_size=yi)
+```
+
+
+```{r}
+####Creating a loop to calculate sd effect size and se
+for (i in seq(nrow(matrix_pitch))){
+  matrix_pitch$sd_effect[i] <- sqrt((sum((matrix_pitch$effect_size[i] - mean(matrix_pitch$effect_size))^2))/length(matrix_pitch))
+  matrix_pitch$standard_error[i] <- matrix_pitch$sd_effect[i]/sqrt(matrix_pitch$sample_size)
+}
+```
+
+```{r}
+####Setting model
+model_matrix <- bf(effect_size|se(standard_error) ~1 + (1|StudyID))
+
+####Getting priors
+get_prior(data = matrix_pitch, family = gaussian, model_matrix)
+
+####Setting priors
+matrix_priors <- c(
+  prior(normal( .3, 2.5), class=Intercept),
+  prior(normal( 0, 2.5), class=sd))
+```
+
+#### only with priors
+```{r}
+####Priors
+matrix_prior_fit <- brm(
+  model_matrix, 
+  data = matrix_pitch, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+####Assesing results
+matrix_prior_fit
+
+####PP check
+pp_check(matrix_prior_fit, ndraws=100)
+```
+
+#### Both data and priors
+```{r}
+####Including both data and priors
+matrix_fit <- brm(
+  model_matrix, 
+  data = matrix_pitch, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+####PP check
+pp_check(matrix_fit)
+```
+## Visualize and report 
+```{r}
+####Plotting and assesing the results
+plot(matrix_fit)
+summary(matrix_fit)
+```
+
+```{r}
+##We are not quite confident witht this part, if we made it correctly. To be honest, we also discussed whether we need to do this part if we can use estimates to asses
+
+####Visualizing and assesing intercepts
+matrix_posterior <- as_draws_df(matrix_fit)
+plot1 <- ggplot(matrix_posterior)+
+  geom_histogram(aes(model_posterior$prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on intercept')+
+  xlab('intercept')
+
+####Visualizing standard deviation
+plot2 <- ggplot(matrix_posterior)+
+  geom_histogram(aes(model_posterior$prior_sd_study_ID), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(model_posterior$sd_study_ID__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  theme_classic()+
+  ggtitle('prior-posterior update check on standard deviation of the intercept')+
+  xlab('intercept')
+
+####Printing plots
+plot1
+plot2
+
+grid.arrange(plot1, plot2)
+```
+## Influencial studies
+
+###Our model gives us an estimated intercept (effect size) of 0.3 with a estimated standard deviation of 2, which is due to the effect sizes of the studies varying a lot. 
+For example we have the study Cohen et al. (2014) with an effect size of -3.30 (sd=0.90, se=0.11, n=76), therefore we are running our model fit again were we exclude the study to see how influential it is on the estimates.
+
+```{r}
+####Excluding the Cohen et al. (2014) by indexing
+excluded_matrix <- matrix_pitch %>% 
+  dplyr::filter(StudyID!=6)
+
+####Running the model
+exclude_matrix_fit <- brm(
+  model_matrix, 
+  data = excluded_matrix, 
+  prior = matrix_priors,
+  family = gaussian,
+  refresh=0,
+  sample_prior = 'only',
+  iter=10000,
+  warmup = 1000,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 2,
+  cores = 2,
+  control = list(
+    adapt_delta = 0.99,
+    max_treedepth = 20
+)
+)
+
+####Visualizing and plotting
+pp_check(exclude_matrix_fit)
+plot(exclude_matrix_fit)
+summary(exclude_matrix_fit)
+```
+###Even though we thought that excluding the study Cohen et al. (2014) will make a difference after the inspection of the effect sizes and deviation. Therefore we stick with the previous one.
+
+
