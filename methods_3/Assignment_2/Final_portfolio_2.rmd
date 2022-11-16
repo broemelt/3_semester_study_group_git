@@ -173,6 +173,7 @@ summary(model_prior_fit)
 ```{r}
 ####Plotting "prior-posterior update check on intercept" and "prior-posterior update check on standard deviation of the intercept"
 model_posterior <- as_draws_df(model_prior_fit)
+
 plot1 <- ggplot(model_posterior)+
   geom_histogram(aes(prior_Intercept), fill='red', color='black', alpha=0.3, bins=50)+
   geom_histogram(aes(Intercept), fill='green', color='black', alpha=0.3, bins=50)+
