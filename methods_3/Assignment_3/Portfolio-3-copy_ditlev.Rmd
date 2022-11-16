@@ -105,6 +105,103 @@ d_skeptic_wide <- d_skeptic %>%
 ```
 
 
+### Visualizing the simulated data for informed data frame
+```{r}
+plot1 <- d_informed_wide %>% 
+  ggplot(aes(x = v1, color = group))+
+  geom_density()
+
+plot2 <- d_informed_wide %>% 
+  ggplot(aes(x = v2, color = group))+
+  geom_density()
+
+plot3 <- d_informed_wide %>% 
+  ggplot(aes(x = v3, color = group))+
+  geom_density()
+
+plot4 <- d_informed_wide %>% 
+  ggplot(aes(x = v4, color = group))+
+  geom_density()
+
+plot5 <- d_informed_wide %>% 
+  ggplot(aes(x = v5, color = group))+
+  geom_density()
+
+plot6 <- d_informed_wide %>% 
+  ggplot(aes(x = v6, color = group))+
+  geom_density()
+
+plot7 <- d_informed_wide %>% 
+  ggplot(aes(x = v7, color = group))+
+  geom_density()
+
+plot8 <- d_informed_wide %>% 
+  ggplot(aes(x = v8, color = group))+
+  geom_density()
+
+plot9 <- d_informed_wide %>% 
+  ggplot(aes(x = v9, color = group))+
+  geom_density()
+
+plot10 <- d_informed_wide %>% 
+  ggplot(aes(x = v10, color = group))+
+  geom_density()
+
+cowplot::plot_grid(plot1, plot2, plot3, plot4, plot5, plot6, plot7, plot8, plot9, plot10, 
+          labels = c("v1", "v2", "v3",'v4','v5','v6','v7','v8','v9','v10'),
+          ncol = 5, nrow = 2)
+
+
+```
+
+### Visualizing the simulated data for skeptical data frame
+```{r}
+plot1_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v1, color = group))+
+  geom_density()
+
+plot2_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v2, color = group))+
+  geom_density()
+
+plot3_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v3, color = group))+
+  geom_density()
+
+plot4_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v4, color = group))+
+  geom_density()
+
+plot5_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v5, color = group))+
+  geom_density()
+
+plot6_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v6, color = group))+
+  geom_density()
+
+plot7_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v7, color = group))+
+  geom_density()
+
+plot8_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v8, color = group))+
+  geom_density()
+
+plot9_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v9, color = group))+
+  geom_density()
+
+plot10_s <- d_skeptic_wide %>% 
+  ggplot(aes(x = v10, color = group))+
+  geom_density()
+
+cowplot::plot_grid(plot1_s, plot2_s, plot3_s, plot4_s, plot5_s, plot6_s, plot7_s, plot8_s, plot9_s, plot10_s, 
+          labels = c("v1", "v2", "v3",'v4','v5','v6','v7','v8','v9','v10'),
+          ncol = 5, nrow = 2)
+
+
+```
 
 ```{r}
 ##Machine Learning pipeline
