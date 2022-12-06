@@ -3,8 +3,8 @@ title: "A_2.final"
 author: "Patrik Molnar"
 date: '2022-11-04'
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
   word_document: default
 ---
 
