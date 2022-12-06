@@ -1,6 +1,8 @@
 ---
 title: "Assignment 1 - Language development in autistic and neurotypical children"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 date: "2022-08-15"
 Author: Manuela Skov Thomasen
 ---
