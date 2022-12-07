@@ -38,6 +38,8 @@ pacman::p_load(glue,
        splitstackshape,
        tidymodels)
 pacman::p_load(tidyverse)
+
+pacman::p_load(DALEX, DALEXtra, kerlab, xgboost, dotwhisker)
 ```
 ##Part 1 - Simulating data
  
@@ -243,8 +245,7 @@ pree-process the data (e.g., scaling the features)
 - discuss whether performance and feature importance is as expected
 
 ### Informed dataset
-#### Data budget and pree-processing (scaling)
-##### splitting the dataset into training and test
+#### Data budget (splitting) and pree-processing (scaling)
 ```{r}
 ##Machine Learning pipeline
 
@@ -260,7 +261,7 @@ sample_inf <- sample(seq(100), 80)
 train_informed <- subset(d_informed_wide, pair_ID %in% sample_inf)
 test_informed <- subset(d_informed_wide, !pair_ID %in% sample_inf)
 
-sample_inf <- sample(seq(100), 80)
+sample_skep <- sample(seq(100), 80)
 train_skeptic <- subset(d_skeptic_wide, pair_ID %in% sample_skep)
 test_skeptic <- subset(d_skeptic_wide, !pair_ID %in% sample_skep)
 
@@ -281,6 +282,8 @@ train_skeptic$Trial <- as.factor(train_skeptic$Trial)
 
 test_informed$Trial <- as.factor(test_informed$Trial)
 test_skeptic$Trial <- as.factor(test_skeptic$Trial)
+
+test_inf_ID <- tibble(test_ID = test_informed$ID, test_pairID = test_informed$pair_ID)
 
 ##Splitting the data using stratified, which also take into consideration stratification of the f.e. gender
 
@@ -308,6 +311,14 @@ train_skeptic_s <- juice(rec_skeptic)
 test_skeptic_s <- bake(rec_skeptic, new_data = test_skeptic)
 
 #Ask ricardo about the ID scaling
+
+test_informed_s <- cbind(test_inf_ID, test_informed_s)
+
+test_informed_s <- subset(test_informed_s, select = -c(ID,pair_ID))
+
+test_informed_s <- rename(test_informed_s, ID = test_ID)
+
+test_informed_s <- rename(test_informed_s, pair_ID = test_pairID)
 ```
 #### Visual inspection of the data
 ```{r}
@@ -365,12 +376,12 @@ plot_grid(plot_i2, plot_s2, plot_i3, plot_s3, plot_i4, plot_s4, plot_i6, plot_s6
 #Make the distribution 
 ```
 ####fit and asses a classification algorithm on training data (Baysian)
-
+*note, we have made two models one with only the variables as predicters and one with random intercept because we expect the participants to have individual baselines. We do not have random slope because this assumes a linear development based on trial
 ```{r}
 ##Setting up the model
 PR_f0 <-bf(Group~1+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10)
 
-PR_f1 <-bf(Group~1+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+(1+Trial|ID))
+PR_f1 <-bf(Group~1+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+(1|ID))
 
 get_prior(PR_f0, train_informed_s, family = bernoulli)
 
@@ -705,7 +716,7 @@ conf_mat(test_skeptic_s,
 
 
 #### Discuss whether performance and feature importance is as expected
-
+*note, would be ideal to run the model fit again after the feature selection but is is not neccessary (so lets not do this)
 
 ##Part 3 - Applying the machine learning pipeline to empirical data 
 
@@ -716,10 +727,214 @@ real_data <- read_csv("assignment_3_data.csv")
 
 Apply your machine learning pipeline to the empirical data 
 
+Warning: in simulated data you only have 10 features, now you have many more 
+- Consider the impact a higher number of features will have on your ML inference and decide if you want to cut down the number of features before running the pipeline (alternatibvely expand the pipeline to add feature selection)
+
+
+### data budgeting and pree-processing of the data
 ```{r}
-train.pca <- prcomp(train_data[,c(8:398)], center = TRUE,scale. = TRUE)
+sample_real <- sample(unique(real_data$PatID), 98)
+
+train_data <- subset(real_data, PatID %in% sample_real)
+test_data <- subset(real_data, !PatID %in% sample_real)
+
+train_data$PatID <- as.factor(train_data$PatID)
+
+test_data$PatID <- as.factor(test_data$PatID)
+
+test_ID <- tibble(test_ID = test_data$PatID, test_newID = test_data$NewID, test_corp=test_data$Corpus)
+
+train_corp <- tibble(train_corpus=train_data$Corpus)
+
+recipe_real <- train_data %>% 
+  recipe(Diagnosis~.) %>% 
+  update_role(PatID, new_role = 'PatID') %>% 
+  step_scale(all_numeric()) %>% 
+  step_center(all_numeric()) %>% 
+  prep(training=train_data, retain=TRUE)
+
+train_data_s <- juice(recipe_real)
+test_data_s <- bake(recipe_real, new_data = test_data)
+
+test_data_s <- cbind(test_ID, test_data_s)
+train_data_s <- cbind(train_corp, train_data_s)
+
+test_data_s <- subset(test_data_s, select = -c(PatID,NewID, Corpus))
+train_data_s <- subset(train_data_s, select = -c(Corpus))
+
+train_data_s <- rename(train_data_s, Corpus=train_corpus)
+test_data_s <- rename(test_data_s, PatID = test_ID)
+
+test_data_s <- rename(test_data_s, newID = test_newID)
+
+test_data_s <- rename(test_data_s, Corpus = test_corp)
+```
+
+### Principle component analysis
+*note, check Lauras code
+```{r}
+pca_recipe <- recipe(Diagnosis~., data = train_data_s) %>%
+  update_role(PatID, new_role = "id") %>% 
+  step_pca(all_numeric(), id = "pca")%>%
+  prep()
+
+tidy_pca <- tidy(pca_recipe, 1)
+
+bake_pca <- bake(pca_recipe train_data_s)
+
+pca_b_test <- bake(pca_recipe, test_data_s)
+
+tidy_pca %>%
+  filter(component %in% paste0("PC", 1:5)) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1) +
+  labs(y = NULL)
+
+
+tidy_pca %>%
+  filter(component %in% paste0("PC", 1:5)) %>%
+  group_by(component) %>%
+  top_n(15, abs(value)) %>%
+  ungroup() %>%
+  mutate(terms = reorder_within(terms, abs(value), component)) %>%
+  ggplot(aes(abs(value), terms, fill = value > 0)) +
+  geom_col() +
+  facet_wrap(~component, scales = "free_y") +
+  scale_y_reordered() +
+  labs(
+    x = "Absolute value of contribution",
+    y = NULL, fill = "Positive?"
+  )
+```
+
+### feature selection 
+
+```{r}
+d_data <- bake_pca %>% 
+  mutate(PatID = NULL, Trail = NULL, NewID = NULL, Gender = NULL, Language = NULL, Corpus = NULL)
+
+LogisticRegression_train<- logistic_reg() %>% 
+  set_mode('classification') %>% 
+  set_engine('glm') %>% 
+  fit(Diagnosis ~ . , data = bake_pca)
 ```
 
 
-Warning: in simulated data you only ahve 10 features, now you have many more 
-- Consider the impact a higher number of features will have on your ML inference and decide if you want to cut down the number of features before running the pipeline (alternatibvely expand the pipeline to add feature selection)
+```{r}
+explainer_lm <-
+  explain_tidymodels(
+    LogisticRegression_train,
+    data = bake_pca,
+    y = as.numeric(d_data$Diagnosis) -1,
+    label = 'logReg',
+    verbose = FALSE
+  )
+
+explainer_lm %>% model_parts() %>%  plot(show_boxplots = FALSE) + ggtitle('Feature importance', '')
+
+```
+
+
+
+
+### fit and assess a classification algorithm on the training data
+```{r}
+form1 <- bf(Diagnosis~1+(1|ID))
+get_prior(form1, train_data_s, family = bernoulli)
+
+prior_f1 <- c(
+  prior(normal(0, 1), class=Intercept),
+  prior(normal(0, 0.3), class=sd),
+  prior(normal(0, 0.3), class=b),
+  prior(lkj(1), class=cor)
+)
+```
+
+
+#### Fitting the model with only the priors
+```{r}
+pr_m1 <- brm(
+  form1, 
+  data = train_data_s, 
+  prior = prior_f1,
+  family = bernoulli,
+  refresh=0,
+  sample_prior = 'only',
+  iter=6000,
+  warmup = 2500,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 4,
+  cores = 4,
+  control = list(
+    adapt_delta = 0.9,
+    max_treedepth = 20)
+)
+
+pp_check(pr_m1)
+```
+#### Fitting model on the data 
+```{r}
+pr_m1_fit <- brm(
+  form1, 
+  data = train_data_s, 
+  prior = prior_f1,
+  family = bernoulli,
+  refresh=0,
+  sample_prior = TRUE,
+  iter=6000,
+  warmup = 2500,
+  backend = "cmdstanr",
+  threads = threading(2),
+  chains = 4,
+  cores = 4,
+  control = list(
+    adapt_delta = 0.9,
+    max_treedepth = 20)
+)
+
+pp_check(pr_m0_fit_inf)
+
+plot(pr_m0_fit_inf)
+
+summary(pr_m0_fit_inf)
+```
+
+### assess performance on the test set
+
+```{r}
+train_data_s$PredictionsPerc1 <- predict(pr_m1_fit)[, 1]
+train_data_s$Prediction1[train_data_s$PredictionsPerc1 > 0.5] <- "Schizophrenia" 
+train_data_s$Prediction1[train_data_s$PredictionsPerc1 <= 0.5] <- "Control" 
+
+train_data_s <- train_data_s %>% 
+  mutate(
+    Diagnosis = as.factor(Diagnosis),
+    Prediction1 = as.factor(Prediction1))
+
+test_data_s$PredictionsPerc1 <- predict(pr_m1_fit, newdata = test_data_s, allow_new_levels = T)[, 1]
+test_data_s$Prediction1[test_data_s$PredictionsPerc1 > 0.5] <- "Schizophrenia" 
+test_data_s$Prediction1[test_data_s$PredictionsPerc1 <= 0.5] <- "Control" 
+
+test_data_s <- test_data_s %>% 
+  mutate(
+    Diagnosis = as.factor(Diagnosis),
+    Prediction1 = as.factor(Prediction1)
+  )
+
+conf_mat(train_data_s, 
+         truth = Diagnosis, 
+         estimate = Prediction1, 
+         dnn = c('prediction','truth'))
+
+conf_mat(test_data_s, 
+         truth = Diagnosis, 
+         estimate = Prediction1, 
+         dnn = c('prediction','truth'))
+```
+
+*note, It is okay that we predict by trial and not participant both is legitimate ways
+
+###discuss whether performance and feature importance is as expected
