@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #Assignment 3
-```{r stup}
+```{r stup, include=FALSE, warning=FALSE, message=FALSE}
 pacman::p_load(glue,
        tidyr,
        data.table,
@@ -40,6 +40,12 @@ pacman::p_load(glue,
 pacman::p_load(tidyverse)
 
 pacman::p_load(DALEX, DALEXtra, kerlab, xgboost, dotwhisker)
+
+pacman::p_load(reshape, msm, metafor, tidyr)
+
+pacman::p_load(tidytex)
+
+pacman::p_load(caret)
 ```
 ##Part 1 - Simulating data
  
@@ -244,10 +250,11 @@ pree-process the data (e.g., scaling the features)
 - assess performance on the test set
 - discuss whether performance and feature importance is as expected
 
-### Informed dataset
-#### Data budget (splitting) and pree-processing (scaling)
+### Data budget (splitting) and pree-processing (scaling)
 ```{r}
-##Machine Learning pipeline
+
+set.seed(260)
+
 
 d_informed_wide <- d_informed_wide %>% 
   mutate(pair_ID=ID) %>% 
@@ -257,13 +264,14 @@ d_skeptic_wide <- d_skeptic_wide %>%
   mutate(pair_ID=ID) %>% 
   mutate(pair_ID= ifelse(ID>100, ID-100, ID))
 
-sample_inf <- sample(seq(100), 80)
-train_informed <- subset(d_informed_wide, pair_ID %in% sample_inf)
-test_informed <- subset(d_informed_wide, !pair_ID %in% sample_inf)
+split_inf <- initial_split(d_informed_wide, prop = 4/5)
 
-sample_skep <- sample(seq(100), 80)
-train_skeptic <- subset(d_skeptic_wide, pair_ID %in% sample_skep)
-test_skeptic <- subset(d_skeptic_wide, !pair_ID %in% sample_skep)
+train_informed <- training(split_inf)
+test_informed <- testing(split_inf)
+
+split_skep <- initial_split(d_skeptic_wide, prop = 4/5)
+train_skeptic <- training(split_skep)
+test_skeptic <- testing(split_skep)
 
 train_informed$ID <- as.factor(train_informed$ID)
 train_skeptic$ID <- as.factor(train_skeptic$ID)
@@ -283,12 +291,7 @@ train_skeptic$Trial <- as.factor(train_skeptic$Trial)
 test_informed$Trial <- as.factor(test_informed$Trial)
 test_skeptic$Trial <- as.factor(test_skeptic$Trial)
 
-test_inf_ID <- tibble(test_ID = test_informed$ID, test_pairID = test_informed$pair_ID)
 
-##Splitting the data using stratified, which also take into consideration stratification of the f.e. gender
-
-
-#Scaling
 rec_informed <- train_informed %>% 
   recipe(Group~.) %>% 
   update_role(ID, new_role = 'ID') %>% 
@@ -310,19 +313,9 @@ test_informed_s <- bake(rec_informed, new_data = test_informed)
 train_skeptic_s <- juice(rec_skeptic)
 test_skeptic_s <- bake(rec_skeptic, new_data = test_skeptic)
 
-#Ask ricardo about the ID scaling
-
-test_informed_s <- cbind(test_inf_ID, test_informed_s)
-
-test_informed_s <- subset(test_informed_s, select = -c(ID,pair_ID))
-
-test_informed_s <- rename(test_informed_s, ID = test_ID)
-
-test_informed_s <- rename(test_informed_s, pair_ID = test_pairID)
 ```
-#### Visual inspection of the data
+### Visual inspection of the data
 ```{r}
-#Plotting
 plot_i2 <- ggplot(train_informed, aes(V2, Group, colour=Group))+
   geom_point()+
   geom_smooth(method = "glm", se=FALSE)+
@@ -373,10 +366,10 @@ plot_s6 <- ggplot(train_skeptic, aes(V6, Group, colour=Group))+
 
 plot_grid(plot_i2, plot_s2, plot_i3, plot_s3, plot_i4, plot_s4, plot_i6, plot_s6)
 
-#Make the distribution 
+
 ```
-####fit and asses a classification algorithm on training data (Baysian)
-*note, we have made two models one with only the variables as predicters and one with random intercept because we expect the participants to have individual baselines. We do not have random slope because this assumes a linear development based on trial
+### fit and asses a classification algorithm on training data (Baysian)
+
 ```{r}
 ##Setting up the model
 PR_f0 <-bf(Group~1+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10)
@@ -387,8 +380,9 @@ get_prior(PR_f0, train_informed_s, family = bernoulli)
 
 get_prior(PR_f1, train_informed_s, family = bernoulli)
 ```
+#### Setting priors
 ```{r}
-##setting the priors
+
 PR_p0 <- c(
   prior(normal(0, 1), class=Intercept),
   prior(normal(0, 0.3), class=b)
@@ -397,12 +391,11 @@ PR_p0 <- c(
 PR_p1 <- c(
   prior(normal(0, 1), class=Intercept),
   prior(normal(0, 0.3), class=sd),
-  prior(normal(0, 0.3), class=b),
-  prior(lkj(1), class=cor)
+  prior(normal(0, 0.3), class=b)
 )
 ```
 
-##### Fitting the first model on both the skeptical and informed data
+#### Fitting the first model on both the skeptical and informed data
 
 ```{r}
 ##Model fit on priors
@@ -504,7 +497,7 @@ plot(pr_m0_fit_skep)
 summary(pr_m0_fit_skep)
 
 ```
-##### Fitting the second model on skeptical and informed data
+#### Fitting the second model on skeptical and informed data
 ```{r}
 ##Second model fit on priors
 pr_m1_inf <- brm(
@@ -577,7 +570,7 @@ summary(pr_m1_fit_inf)
 
 ```
 ```{r}
-##Model fit on skeptical data
+## second model fit on skeptical data
 pr_m1_fit_skep <- brm(
   PR_f1, 
   data = train_skeptic_s, 
@@ -605,7 +598,7 @@ summary(pr_m1_fit_skep)
 ```
 
 
-#### Asses performance on test data
+### Asses performance on test data
 ```{r}
 train_informed_s$PredictionsPerc0 <- predict(pr_m0_fit_inf)[, 1]
 train_informed_s$Prediction0[train_informed_s$PredictionsPerc0 > 0.5] <- "Schizophrenia" 
@@ -672,56 +665,35 @@ test_skeptic_s <- test_skeptic_s %>%
     Prediction1 = as.factor(Prediction1)
   )
 ```
+
+
 ```{r}
-conf_mat(train_informed_s, 
-         truth = Group, 
-         estimate = Prediction0, 
-         dnn = c('prediction','truth'))
+confusionMatrix(train_skeptic_s$Group, train_skeptic_s$Prediction0)
+confusionMatrix(test_skeptic_s$Group, test_skeptic_s$Prediction0)
 
-conf_mat(test_informed_s, 
-         truth = Group, 
-         estimate = Prediction0, 
-         dnn = c('prediction','truth'))
+confusionMatrix(train_skeptic_s$Group, train_skeptic_s$Prediction1)
+confusionMatrix(test_skeptic_s$Group, test_skeptic_s$Prediction1)
 
-conf_mat(train_informed_s, 
-         truth = Group, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
+confusionMatrix(train_informed_s$Group, train_informed_s$Prediction0)
+confusionMatrix(test_informed_s$Group, test_informed_s$Prediction0)
 
-conf_mat(test_informed_s, 
-         truth = Group, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
+confusionMatrix(train_informed_s$Group, train_informed_s$Prediction1)
+confusionMatrix(test_informed_s$Group, test_informed_s$Prediction1)
 
-conf_mat(train_skeptic_s, 
-         truth = Group, 
-         estimate = Prediction0, 
-         dnn = c('prediction','truth'))
-
-conf_mat(test_skeptic_s, 
-         truth = Group, 
-         estimate = Prediction0, 
-         dnn = c('prediction','truth'))
-
-conf_mat(train_skeptic_s, 
-         truth = Group, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
-
-conf_mat(test_skeptic_s, 
-         truth = Group, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
 ```
 
 
-#### Discuss whether performance and feature importance is as expected
-*note, would be ideal to run the model fit again after the feature selection but is is not neccessary (so lets not do this)
+### Discuss whether performance and feature importance is as expected
 
 ##Part 3 - Applying the machine learning pipeline to empirical data 
 
 ```{r}
 real_data <- read_csv("assignment_3_data.csv")
+
+real_data <- real_data %>% 
+  select(-Language) %>% 
+  select(-Corpus) %>% 
+  select(-NewID)
 ```
 
 
@@ -732,19 +704,29 @@ Warning: in simulated data you only have 10 features, now you have many more
 
 
 ### data budgeting and pree-processing of the data
-```{r}
-sample_real <- sample(unique(real_data$PatID), 98)
 
-train_data <- subset(real_data, PatID %in% sample_real)
-test_data <- subset(real_data, !PatID %in% sample_real)
+```{r}
+set.seed(304)
+
+split_real_data <- initial_split(real_data, prop = 4/5, strata = Gender)
+
+train_data <- training(split_real_data)
+test_data <- testing(split_real_data)
+
+train_data <- train_data %>% 
+  select(-Gender) %>% 
+  select(-Trial)
+
+test_data <- test_data %>% 
+  select(-Gender) %>% 
+  select(-Trial)
 
 train_data$PatID <- as.factor(train_data$PatID)
 
 test_data$PatID <- as.factor(test_data$PatID)
+```
 
-test_ID <- tibble(test_ID = test_data$PatID, test_newID = test_data$NewID, test_corp=test_data$Corpus)
-
-train_corp <- tibble(train_corpus=train_data$Corpus)
+```{r}
 
 recipe_real <- train_data %>% 
   recipe(Diagnosis~.) %>% 
@@ -756,22 +738,9 @@ recipe_real <- train_data %>%
 train_data_s <- juice(recipe_real)
 test_data_s <- bake(recipe_real, new_data = test_data)
 
-test_data_s <- cbind(test_ID, test_data_s)
-train_data_s <- cbind(train_corp, train_data_s)
-
-test_data_s <- subset(test_data_s, select = -c(PatID,NewID, Corpus))
-train_data_s <- subset(train_data_s, select = -c(Corpus))
-
-train_data_s <- rename(train_data_s, Corpus=train_corpus)
-test_data_s <- rename(test_data_s, PatID = test_ID)
-
-test_data_s <- rename(test_data_s, newID = test_newID)
-
-test_data_s <- rename(test_data_s, Corpus = test_corp)
 ```
 
 ### Principle component analysis
-*note, check Lauras code
 ```{r}
 pca_recipe <- recipe(Diagnosis~., data = train_data_s) %>%
   update_role(PatID, new_role = "id") %>% 
@@ -780,7 +749,7 @@ pca_recipe <- recipe(Diagnosis~., data = train_data_s) %>%
 
 tidy_pca <- tidy(pca_recipe, 1)
 
-bake_pca <- bake(pca_recipe train_data_s)
+bake_pca <- bake(pca_recipe, train_data_s)
 
 pca_b_test <- bake(pca_recipe, test_data_s)
 
@@ -836,19 +805,15 @@ explainer_lm %>% model_parts() %>%  plot(show_boxplots = FALSE) + ggtitle('Featu
 
 ```
 
-
-
-
 ### fit and assess a classification algorithm on the training data
 ```{r}
-form1 <- bf(Diagnosis~1+(1|ID))
-get_prior(form1, train_data_s, family = bernoulli)
+form1 <- bf(Diagnosis~1+PC2+PC1+PC3+PC4+(1|PatID))
+get_prior(form1, bake_pca, family = bernoulli)
 
 prior_f1 <- c(
   prior(normal(0, 1), class=Intercept),
-  prior(normal(0, 0.3), class=sd),
-  prior(normal(0, 0.3), class=b),
-  prior(lkj(1), class=cor)
+  prior(normal(0, 1), class=sd),
+  prior(normal(0, 0.3), class=b)
 )
 ```
 
@@ -857,7 +822,7 @@ prior_f1 <- c(
 ```{r}
 pr_m1 <- brm(
   form1, 
-  data = train_data_s, 
+  data = bake_pca, 
   prior = prior_f1,
   family = bernoulli,
   refresh=0,
@@ -879,7 +844,7 @@ pp_check(pr_m1)
 ```{r}
 pr_m1_fit <- brm(
   form1, 
-  data = train_data_s, 
+  data = bake_pca, 
   prior = prior_f1,
   family = bernoulli,
   refresh=0,
@@ -895,46 +860,59 @@ pr_m1_fit <- brm(
     max_treedepth = 20)
 )
 
-pp_check(pr_m0_fit_inf)
+pp_check(pr_m1_fit)
 
-plot(pr_m0_fit_inf)
+plot(pr_m1_fit)
 
-summary(pr_m0_fit_inf)
+summary(pr_m1_fit)
 ```
+
+### Prior posterior update check
+```{r}
+Posterior_f1 <- as_draws_df(pr_m1_fit)
+
+ggplot(Posterior_f1) +
+  geom_density(aes(prior_Intercept), fill="green", color="black",alpha=0.6) +
+  geom_density(aes(b_Intercept), fill="red", color="black",alpha=0.6) + 
+  xlab('Intercept') +
+  theme_classic()+
+  ggtitle("intercept")+
+      theme(plot.title = element_text(size = 10, face = "bold"))
+```
+
 
 ### assess performance on the test set
 
 ```{r}
-train_data_s$PredictionsPerc1 <- predict(pr_m1_fit)[, 1]
-train_data_s$Prediction1[train_data_s$PredictionsPerc1 > 0.5] <- "Schizophrenia" 
-train_data_s$Prediction1[train_data_s$PredictionsPerc1 <= 0.5] <- "Control" 
+bake_pca$PredictionsPerc1 <- predict(pr_m1_fit)[, 1]
 
-train_data_s <- train_data_s %>% 
+bake_pca$Prediction1[bake_pca$PredictionsPerc1 > 0.5] <- "SCZ" 
+bake_pca$Prediction1[bake_pca$PredictionsPerc1 <= 0.5] <- "CT" 
+
+bake_pca <- bake_pca %>% 
   mutate(
     Diagnosis = as.factor(Diagnosis),
     Prediction1 = as.factor(Prediction1))
 
-test_data_s$PredictionsPerc1 <- predict(pr_m1_fit, newdata = test_data_s, allow_new_levels = T)[, 1]
-test_data_s$Prediction1[test_data_s$PredictionsPerc1 > 0.5] <- "Schizophrenia" 
-test_data_s$Prediction1[test_data_s$PredictionsPerc1 <= 0.5] <- "Control" 
+pca_b_test$PredictionsPerc1 <- predict(pr_m1_fit, newdata = pca_b_test, allow_new_levels = T)[, 1]
 
-test_data_s <- test_data_s %>% 
+
+
+pca_b_test$Prediction1[pca_b_test$PredictionsPerc1 > 0.5] <- "SCZ" 
+pca_b_test$Prediction1[pca_b_test$PredictionsPerc1 <= 0.5] <- "CT" 
+
+pca_b_test <- pca_b_test %>% 
   mutate(
     Diagnosis = as.factor(Diagnosis),
     Prediction1 = as.factor(Prediction1)
   )
-
-conf_mat(train_data_s, 
-         truth = Diagnosis, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
-
-conf_mat(test_data_s, 
-         truth = Diagnosis, 
-         estimate = Prediction1, 
-         dnn = c('prediction','truth'))
 ```
 
-*note, It is okay that we predict by trial and not participant both is legitimate ways
+Accuracy
+```{r}
+confusionMatrix(bake_pca$Diagnosis, bake_pca$Prediction1)
 
+confusionMatrix(pca_b_test$Diagnosis, pca_b_test$Prediction1)
+
+```
 ###discuss whether performance and feature importance is as expected
