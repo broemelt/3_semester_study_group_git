@@ -33,6 +33,8 @@ pacman::p_load(glue,
 pacman::p_load(tidyverse)
 
 pacman::p_load(purr)
+
+pacman::p_load(BiocManager)
 ```
 
 # Assignment 1  - Language development in autistic and neurotypical children
@@ -188,7 +190,7 @@ prior(lkj(2),class=cor))
 ```
 
 ###Model using priors
-```{r}
+```{r, warning=FALSE, message=FALSE, results='hide' }
 MLU_prior_m1 <- brm(
   MLU_f1, 
   data = sim_data, 
@@ -216,7 +218,7 @@ pp_check(MLU_prior_m1, ndraws=100)
 
 ###fit the model
 
-```{r}
+```{r, warning=FALSE, message=FALSE, results='hide' }
 MLU_prior_m1_fit <- brm(
   MLU_f1, 
   data = sim_data, 
@@ -608,7 +610,7 @@ prior(lkj(2),class="cor"))
 
 
 
-```{r model using priors}
+```{r, warning=FALSE, message=FALSE, results='hide' }
 MLU_prior <- brm(
   MLU_fit, 
   data = real_data, 
@@ -638,7 +640,7 @@ pp_check(MLU_prior, ndraws = 100)+
 
 ###fit the model
 
-```{r}
+```{r, warning=FALSE, message=FALSE, results='hide' }
 MLU_prior_fit <- brm(
   MLU_fit, 
   data = real_data, 
