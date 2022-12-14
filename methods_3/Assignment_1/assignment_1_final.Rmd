@@ -1,6 +1,8 @@
 ---
 title: "Assignment 1 - Language development in autistic and neurotypical children"
 output:
+  html_document:
+    df_print: paged
   pdf_document: default
 ---
 
@@ -32,9 +34,11 @@ pacman::p_load(glue,
 
 pacman::p_load(tidyverse)
 
-pacman::p_load(purr)
+pacman::p_load(purrr)
 
 pacman::p_load(BiocManager)
+
+pacman::p_load(tinytex, latexpdf)
 ```
 
 # Assignment 1  - Language development in autistic and neurotypical children
@@ -377,170 +381,172 @@ slope_td <- rnorm(n, mean = change_mlu_td, sd=change_sd_mlu_td)
 Manuela
 #### running the functiong with different amount of participants
 ```{r}
-n_sim <- 10
-
-s10 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=10)) %>% 
-  unnest(b1)
-
-s15 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=15)) %>% 
-  unnest(b1)
-
-s20 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=20)) %>% 
-  unnest(b1)
-
-s30 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=30)) %>% 
-  unnest(b1)
-
-s40 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=40)) %>% 
-  unnest(b1)
-
-s50 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=50)) %>% 
-  unnest(b1)
-
-s75 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=75)) %>% 
-  unnest(b1)
-
-s100 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=100)) %>% 
-  unnest(b1)
-
-s180 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=180)) %>% 
-  unnest(b1)
-
-s250 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=250)) %>% 
-  unnest(b1)
-
-s300 <- tibble(seed=1:n_sim) %>% 
-  mutate(b1=purrr::map(seed, fun_sim_data, n=300)) %>% 
-  unnest(b1)
+# n_sim <- 10
+# 
+# s10 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=10)) %>% 
+#   unnest(b1)
+# 
+# s15 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=15)) %>% 
+#   unnest(b1)
+# 
+# s20 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=20)) %>% 
+#   unnest(b1)
+# 
+# s30 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=30)) %>% 
+#   unnest(b1)
+# 
+# s40 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=40)) %>% 
+#   unnest(b1)
+# 
+# s50 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=50)) %>% 
+#   unnest(b1)
+# 
+# s75 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=75)) %>% 
+#   unnest(b1)
+# 
+# s100 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=100)) %>% 
+#   unnest(b1)
+# 
+# s180 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=180)) %>% 
+#   unnest(b1)
+# 
+# s250 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=250)) %>% 
+#   unnest(b1)
+# 
+# s300 <- tibble(seed=1:n_sim) %>% 
+#   mutate(b1=purrr::map(seed, fun_sim_data, n=300)) %>% 
+#   unnest(b1)
 ```
 #### Effectsize of slope difference (plots)
 
 ```{r}
-plot_s10 <- s10 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 10 participants")
-
-plot_s15 <- s15 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 15 participants")
-
-plot_s20 <- s20 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 20 participants")
-
-plot_s30 <- s30 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 30 participants")
-
-plot_s40 <- s40 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 40 participants")
-
-plot_s50 <- s50 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 50 participants")
-
-plot_s75 <- s75 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 75 participants")
-
-plot_s100 <- s100 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 100 participants")
-
-plot_s180 <- s180 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 180 participants")
-  
-plot_s250 <- s250 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 150 participants")
-
-plot_s300 <- s300 %>% 
-  ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
-  geom_pointrange(fatten = 1/2)+
-  geom_hline(yintercept = c(0, 0.5), colour= 'green')+
-  labs(x="seed (simulation index)", y= "slope difference")+
-  ggtitle("slope difference, 300 participants")
-
-plot_s10
-plot_s15
-plot_s20
-plot_s30
-plot_s40
-plot_s50
-plot_s75
-plot_s100
-plot_s180
-plot_s250
-plot_s300
+# plot_s10 <- s10 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 10 participants")
+# 
+# plot_s15 <- s15 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 15 participants")
+# 
+# plot_s20 <- s20 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 20 participants")
+# 
+# plot_s30 <- s30 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 30 participants")
+# 
+# plot_s40 <- s40 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 40 participants")
+# 
+# plot_s50 <- s50 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 50 participants")
+# 
+# plot_s75 <- s75 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 75 participants")
+# 
+# plot_s100 <- s100 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 100 participants")
+# 
+# plot_s180 <- s180 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 180 participants")
+#   
+# plot_s250 <- s250 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 150 participants")
+# 
+# plot_s300 <- s300 %>% 
+#   ggplot(aes(x=seed, y=mean, ymin = `2.5%`, ymax= `97.5%` ))+
+#   geom_pointrange(fatten = 1/2)+
+#   geom_hline(yintercept = c(0, 0.5), colour= 'green')+
+#   labs(x="seed (simulation index)", y= "slope difference")+
+#   ggtitle("slope difference, 300 participants")
+# 
+# grid.arrange(
+#   plot_s10,
+#   plot_s15,
+#   plot_s20,
+#   plot_s30,
+#   plot_s40)
+# grid.arrange(
+#   plot_s50,
+#   plot_s75,
+#   plot_s100,
+#   plot_s180,
+#   plot_s250,
+#   plot_s300)
 ```
 
 Patrik
 #### Power analysis 
 
 ```{r}
-power_analysis_fun <- function(sim_nr, n){
-  sim_nr %>% 
-    mutate(two_half=ifelse(`2.5%`>0,1,0 )) %>%
-    summarise(power=mean(two_half)) %>% 
-    add_column(number_of_participants=n)
-}
-
-power_analysis_sum <- bind_rows(
-  power_analysis_fun(s10, 10),
-  power_analysis_fun(s15, 15),
-  power_analysis_fun(s20, 20),
-  power_analysis_fun(s30, 30),
-  power_analysis_fun(s40, 40),
-  power_analysis_fun(s50, 50),
-  power_analysis_fun(s75, 75),
-  power_analysis_fun(s100, 100),
-  power_analysis_fun(s180, 180),
-  power_analysis_fun(s250, 250),
-  power_analysis_fun(s300, 300))
-
-power_analysis_sum
+# power_analysis_fun <- function(sim_nr, n){
+#   sim_nr %>% 
+#     mutate(two_half=ifelse(`2.5%`>0,1,0 )) %>%
+#     summarise(power=mean(two_half)) %>% 
+#     add_column(number_of_participants=n)
+# }
+# 
+# power_analysis_sum <- bind_rows(
+#   power_analysis_fun(s10, 10),
+#   power_analysis_fun(s15, 15),
+#   power_analysis_fun(s20, 20),
+#   power_analysis_fun(s30, 30),
+#   power_analysis_fun(s40, 40),
+#   power_analysis_fun(s50, 50),
+#   power_analysis_fun(s75, 75),
+#   power_analysis_fun(s100, 100),
+#   power_analysis_fun(s180, 180),
+#   power_analysis_fun(s250, 250),
+#   power_analysis_fun(s300, 300))
+# 
+# power_analysis_sum
 ```
 
 
@@ -558,39 +564,42 @@ real_data <- read_csv('assignment_data_clean.csv')
 ```
 
 ```{r}
-unique(real_data$SUBJ)
+unique(real_data$id)
+
+real_data <- real_data %>% 
+  mutate(Diagnosis=as.factor(Diagnosis))
 
 real_data %>% 
   group_by(Gender) %>% 
-  filter(VISIT==1) %>% 
+  filter(visit==1) %>% 
   count()
 
 #Counting participants
 real_data %>%
   group_by(Diagnosis) %>%
-  filter(VISIT==1) %>% 
+  filter(visit==1) %>% 
   count()
 
 ##o use lognormal distribution we cannot have negative MLU, so we filter it
 real_data <- real_data %>% 
-  filter(CHI_MLU>=0)
+  filter(!CHI_MLU<=0)
 
 ```
 
 ```{r}
-ggplot(real_data, aes(VISIT,CHI_MLU, color=Diagnosis, group=SUBJ))+
+ggplot(real_data, aes(visit,CHI_MLU, color=Diagnosis, group=id))+
   theme_bw()+
   geom_point()+
   geom_line(alpha=0.3)
 
-ggplot(real_data, aes(Diagnosis, MullenRaw, color=Diagnosis))+
+ggplot(real_data, aes(Diagnosis, MOT_MLU, color=Diagnosis))+
   theme_bw()+
   geom_point()+
   geom_line(alpha=0.3)
 ```
 
 ```{r formula and prior}
-MLU_fit<- bf(CHI_MLU ~ 0 + Diagnosis + Diagnosis:VISIT + (1 + VISIT|SUBJ))
+MLU_fit<- bf(CHI_MLU ~ 0 + Diagnosis + Diagnosis:visit + (1 + visit|id))
 
 get_prior(data = real_data, family = lognorm_fam, MLU_fit)
 
@@ -599,10 +608,10 @@ priors_sim<-c(
 prior(normal(0,0.2),class=b),
 prior(normal(0.5,0.05),class=b,coef="DiagnosisA"),
 prior(normal(0.5,0.02),class=b,coef="DiagnosisB"),
-prior(normal(0,0.06),class=b,coef="DiagnosisA:VISIT"),
-prior(normal(0,0.03),class=b,coef="DiagnosisB:VISIT"),
-prior(normal(0,0.2),class=sd,coef=Intercept,group=SUBJ),
-prior(normal(0,0.1),class=sd,coef=VISIT,group=SUBJ),
+prior(normal(0,0.06),class=b,coef="DiagnosisA:visit"),
+prior(normal(0,0.03),class=b,coef="DiagnosisB:visit"),
+prior(normal(0,0.2),class=sd,coef=Intercept,group=id),
+prior(normal(0,0.1),class=sd,coef=visit,group=id),
 prior(normal(0,0.2),class=sigma),
 prior(lkj(2),class="cor"))
 
@@ -614,7 +623,7 @@ prior(lkj(2),class="cor"))
 MLU_prior <- brm(
   MLU_fit, 
   data = real_data, 
-  prior = priors,
+  prior = priors_sim,
   family = lognorm_fam,
   refresh=0,
   sample_prior = 'only',
@@ -630,6 +639,7 @@ MLU_prior <- brm(
 )
 )
 
+
 ```
 ###prior predictive checks
 ```{r}
@@ -644,7 +654,7 @@ pp_check(MLU_prior, ndraws = 100)+
 MLU_prior_fit <- brm(
   MLU_fit, 
   data = real_data, 
-  prior = priors,
+  prior = priors_sim,
   family = lognorm_fam,
   refresh=0,
   sample_prior = TRUE,
@@ -697,46 +707,46 @@ plot2 <- ggplot(posterior)+
   xlab('intercept for TD')
 
 plot3 <- ggplot(posterior)+
-  geom_histogram(aes(`prior_b_DiagnosisA:VISIT`), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(`b_DiagnosisA:VISIT`), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`prior_b_DiagnosisA:visit`), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`b_DiagnosisA:visit`), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('prior-posterior update check on slope for ASD')+
   xlab("Slope for ASD")
 
 plot4 <- ggplot(posterior)+
-  geom_histogram(aes(`prior_b_DiagnosisB:VISIT`), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(`b_DiagnosisB:VISIT`), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`prior_b_DiagnosisB:visit`), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`b_DiagnosisB:visit`), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('prior-posterior update check on slope for TD')+
   xlab("slope for TD")
 
 
 plot5 <- ggplot(posterior)+
-  geom_histogram(aes(prior_cor_SUBJ), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(cor_SUBJ__Intercept__VISIT), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(prior_cor_id), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(cor_id__Intercept__visit), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('prior-posterior update check on correlation between varying intercepts and slopes')+
   xlab("Correlation")
 
 plot6 <- ggplot(posterior)+
-  geom_histogram(aes(prior_sd_SUBJ__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(sd_SUBJ__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(prior_sd_id__Intercept), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_id__Intercept), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('Prior-posterior update check, the variability of the intercept')+
   xlab("Intercept")
 
 plot7 <- ggplot(posterior)+
-  geom_histogram(aes(prior_sd_SUBJ__VISIT), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(sd_SUBJ__VISIT), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(prior_sd_id__visit), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(sd_id__visit), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('Prior-posterior update check, the variability of the slopes')+
   xlab("Intercept")
 
 plot8 <- ggplot(posterior)+
-  geom_histogram(aes(`prior_b_DiagnosisA:VISIT`), fill='red', color='black', alpha=0.3, bins=50)+
-  geom_histogram(aes(`b_DiagnosisA:VISIT`), fill='green', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`prior_b_DiagnosisA:visit`), fill='red', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`b_DiagnosisA:visit`), fill='green', color='black', alpha=0.3, bins=50)+
   theme_classic()+
-  geom_histogram(aes(`b_DiagnosisB:VISIT`), fill='yellow', color='black', alpha=0.3, bins=50)+
+  geom_histogram(aes(`b_DiagnosisB:visit`), fill='yellow', color='black', alpha=0.3, bins=50)+
   theme_classic()+
   ggtitle('prior-posterior update check on slope')+
   xlab("Slope")
@@ -765,55 +775,55 @@ plot9
 ```
 
 ```{r}
-temp_re <- ranef(MLU_prior_fit)$SUBJ
-for (i in unique(real_data$SUBJ)) {
+temp_re <- ranef(MLU_prior_fit)$id
+for (i in unique(real_data$id)) {
   temp <- as.character(i)
-  real_data$EstimatedIntercept[real_data$SUBJ == i] <- temp_re[,,'Intercept'][temp,1]
-  real_data$EstimatedIntercept_low[real_data$SUBJ == i] <- temp_re[,,'Intercept'][temp,3]
-  real_data$EstimatedIntercept_high[real_data$SUBJ == i] <- temp_re[,,'Intercept'][temp,4]
-  real_data$EstimatedSlope[real_data$SUBJ == i] <- temp_re[,,'VISIT'][temp,1]
-  real_data$EstimatedSlope_low[real_data$SUBJ == i] <- temp_re[,,'VISIT'][temp,3]
-  real_data$EstimatedSlope_high[real_data$SUBJ == i] <- temp_re[,,'VISIT'][temp,4]
+  real_data$EstimatedIntercept[real_data$id == i] <- temp_re[,,'Intercept'][temp,1]
+  real_data$EstimatedIntercept_low[real_data$id == i] <- temp_re[,,'Intercept'][temp,3]
+  real_data$EstimatedIntercept_high[real_data$id == i] <- temp_re[,,'Intercept'][temp,4]
+  real_data$EstimatedSlope[real_data$id == i] <- temp_re[,,'visit'][temp,1]
+  real_data$EstimatedSlope_low[real_data$id == i] <- temp_re[,,'visit'][temp,3]
+  real_data$EstimatedSlope_high[real_data$id == i] <- temp_re[,,'visit'][temp,4]
 }
 
-d <- real_data %>% subset(VISIT == 1) %>% 
+d <- real_data %>% subset(visit == 1) %>% 
   mutate(
     EstimatedIntercept = ifelse(Diagnosis == 'A',
-                                    EstimatedIntercept + 3.96,
-                                    EstimatedIntercept + 3.87),
+                                    EstimatedIntercept + 0.44,
+                                    EstimatedIntercept + 0.49),
     EstimatedIntercept_low = ifelse(Diagnosis == 'A',
-                                   EstimatedIntercept_low + 3.96,
-                                   EstimatedIntercept_low + 3.87),
+                                   EstimatedIntercept_low + 0.44,
+                                   EstimatedIntercept_low + 0.49),
     EstimatedIntercept_high = ifelse(Diagnosis == 'A',
-                                     EstimatedIntercept_high + 3.96,
-                                     EstimatedIntercept_high + 3.87)
+                                     EstimatedIntercept_high + 0.44,
+                                     EstimatedIntercept_high + 0.49)
 )
 
 
-d <- real_data %>% subset(VISIT == 1) %>% 
+d <- real_data %>% subset(visit == 1) %>% 
   mutate(
     EstimatedSlope = ifelse(Diagnosis == 'A',
-                                    EstimatedSlope + 3.96,
-                                    EstimatedSlope + 3.87),
+                                    EstimatedSlope - 0.01,
+                                    EstimatedSlope + 0.07),
     EstimatedSlope_low = ifelse(Diagnosis == 'A',
-                                   EstimatedSlope_low + 3.96,
-                                   EstimatedSlope_low + 3.87),
+                                   EstimatedSlope_low - 0.01,
+                                   EstimatedSlope_low + 0.07),
     EstimatedSlope_high = ifelse(Diagnosis == 'A',
-                                     EstimatedSlope_high + 3.96,
-                                     EstimatedSlope_high + 3.87)
+                                     EstimatedSlope_high - 0.01,
+                                     EstimatedSlope_high + 0.07)
 )
     
 estimates_intercept <- ggplot(d) +
-  geom_pointrange(aes( x = as.numeric(as.factor(SUBJ)), y = EstimatedIntercept,
+  geom_pointrange(aes( x = as.numeric(as.factor(id)), y = EstimatedIntercept,
                        ymin = EstimatedIntercept_low, ymax = EstimatedIntercept_high,
                        color = Diagnosis), alpha = 0.3) +
-  geom_point(aes( x = as.numeric(as.factor(SUBJ)), y = EstimatedIntercept))
+  geom_point(aes( x = as.numeric(as.factor(id)), y = EstimatedIntercept))
 
 estimates_slopes <- ggplot(d) +
-  geom_pointrange(aes( x = as.numeric(as.factor(SUBJ)), y = EstimatedSlope,
+  geom_pointrange(aes( x = as.numeric(as.factor(id)), y = EstimatedSlope,
                        ymin = EstimatedSlope_low, ymax = EstimatedSlope_high,
                        color = Diagnosis), alpha = 0.3) +
-  geom_point(aes( x = as.numeric(as.factor(SUBJ)), y = EstimatedSlope))
+  geom_point(aes( x = as.numeric(as.factor(id)), y = EstimatedSlope))
 
 estimates_intercept
 estimates_slopes
